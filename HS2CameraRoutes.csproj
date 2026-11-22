@@ -1,0 +1,64 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AssemblyName>HS2CameraRoutes</AssemblyName>
+    <RootNamespace>HS2CameraRoutes</RootNamespace>
+    <TargetFramework>net472</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <OutputPath>bin\$(Configuration)\</OutputPath>
+    <DebugType>embedded</DebugType>
+    <Version>0.9.2</Version>
+    <Authors>Albatross Labs</Authors>
+
+    <!--
+      The game install. References are read from it (so they always match what you run), and every build
+      copies the DLL to BepInEx\plugins\AlbatrossLabs\HS2CameraRoutes\ there.
+        dotnet build -c Release -p:HS2Dir="D:\Games\HoneySelect2"
+      Add -p:Deploy=false to build without copying.
+    -->
+    <HS2Dir Condition="'$(HS2Dir)' == ''">X:\HS2 RX15</HS2Dir>
+    <Deploy Condition="'$(Deploy)' == ''">true</Deploy>
+    <Managed>$(HS2Dir)\StudioNEOV2_Data\Managed</Managed>
+    <BepInEx>$(HS2Dir)\BepInEx</BepInEx>
+    <DeployDir>$(BepInEx)\plugins\AlbatrossLabs\HS2CameraRoutes</DeployDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="$(BepInEx)\core\BepInEx.dll" Private="false" />
+    <Reference Include="$(BepInEx)\core\0Harmony.dll" Private="false" />
+    <Reference Include="$(BepInEx)\plugins\HS2API.dll" Private="false" />
+    <Reference Include="$(Managed)\Assembly-CSharp.dll" Private="false" />
+    <Reference Include="$(Managed)\Assembly-CSharp-firstpass.dll" Private="false" />
+    <Reference Include="$(Managed)\IL.dll" Private="false" />
+    <Reference Include="$(Managed)\Cinemachine.dll" Private="false" />
+    <Reference Include="$(Managed)\UniRx.dll" Private="false" />
+    <Reference Include="$(Managed)\UnityEngine.dll" Private="false" />
+    <Reference Include="$(Managed)\UnityEngine.CoreModule.dll" Private="false" />
+    <Reference Include="$(Managed)\UnityEngine.IMGUIModule.dll" Private="false" />
+    <Reference Include="$(Managed)\UnityEngine.InputModule.dll" Private="false" />
+    <Reference Include="$(Managed)\UnityEngine.TextRenderingModule.dll" Private="false" />
+    <Reference Include="$(Managed)\UnityEngine.UI.dll" Private="false" />
+    <Reference Include="$(Managed)\UnityEngine.UIModule.dll" Private="false" />
+    <Reference Include="$(Managed)\UnityEngine.AssetBundleModule.dll" Private="false" />
+    <Reference Include="$(Managed)\UnityEngine.AnimationModule.dll" Private="false" />
+  </ItemGroup>
+
+  <Target Name="DeployToHS2" AfterTargets="Build" Condition="'$(Deploy)' == 'true' And '$(HS2Dir)' != '' And Exists('$(BepInEx)\plugins')">
+    <MakeDir Directories="$(DeployDir)" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(DeployDir)" />
+    <Message Importance="high" Text="Deployed $(TargetFileName) to $(DeployDir)" />
+  </Target>
+
+
+  <!-- Every Release build also keeps a copy of itself in bin\Releasev<version>\ (git-ignored): a local history of builds. -->
+  <Target Name="CopyToReleaseFolder" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">
+    <MakeDir Directories="$(MSBuildThisFileDirectory)bin\Releasev$(Version)" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(MSBuildThisFileDirectory)bin\Releasev$(Version)" />
+    <Message Importance="high" Text="Copied $(TargetFileName) to bin\Releasev$(Version)" />
+  </Target>
+</Project>
