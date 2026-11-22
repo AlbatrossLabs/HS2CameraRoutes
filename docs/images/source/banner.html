@@ -74,7 +74,7 @@
   .banner .tagline { font-size: 21px; }
   .banner .by { position: absolute; left: 64px; bottom: 26px; }
   .banner .scene { left: 1150px; top: 0; width: 450px; height: 400px; }
-  .banner .girl { width: 290px; left: 82px; top: 8px; }
+  .banner .girl { width: 200px; left: 139px; top: 0px; }
   .banner .win { width: 300px; left: 800px; top: 74px; }
 
   /* Social preview, 1280 x 640 */
@@ -90,8 +90,24 @@
   .social .chips { max-width: 640px; }
   .social .by { position: absolute; left: 64px; bottom: 34px; }
   .social .scene { left: 760px; top: 0; width: 520px; height: 640px; }
-  .social .girl { width: 420px; left: 50px; top: 18px; }
+  .social .girl { width: 303px; left: 125px; top: 10px; }
   .social .win { width: 290px; left: 470px; top: 388px; transform: perspective(1400px) rotateY(-10deg) rotateZ(-2deg); }
+
+  /* Discord, 1200 x 800 (3:2) */
+  .discord { width: 1200px; height: 800px; }
+  .discord .glow.c { width: 600px; height: 420px; left: -160px; top: -120px; }
+  .discord .glow.p { width: 640px; height: 760px; right: -80px; top: 40px; }
+  .discord .brand { left: 60px; top: 64px; width: 640px; }
+  .discord .camera { font-size: 92px; }
+  .discord .plate { height: 88px; padding: 0 22px; }
+  .discord .routes { font-size: 64px; }
+  .discord .underline { width: 400px; }
+  .discord .tagline { font-size: 24px; max-width: 600px; }
+  .discord .chips { max-width: 600px; }
+  .discord .by { position: absolute; left: 60px; bottom: 38px; }
+  .discord .scene { left: 680px; top: 0; width: 520px; height: 800px; }
+  .discord .girl { width: 360px; left: 99px; top: 20px; }
+  .discord .win { width: 340px; left: 60px; top: 478px; transform: perspective(1400px) rotateY(10deg) rotateZ(-1.5deg); }
 </style>
 </head>
 <body>
@@ -145,10 +161,13 @@ function spiral(w, h, girlCx, y0, y1, rx, ry, turns, theta0, head, camT, markSiz
     return `<g opacity="${p.front ? 1 : .55}"><path d="M${x - s * .62} ${y - s * 1.25} L${x + s * .62} ${y - s * 1.25} L${x} ${y} Z" fill="#1a22e6" stroke="#5b6bff" stroke-width="1.5"/>
       <text x="${x}" y="${y - s * .72}" fill="#fff" font-family="Inter" font-weight="800" font-size="${s * .62}" text-anchor="middle">${label}</text></g>`;
   };
-  const steps = 6, idx = k => Math.round(k / steps * N);
-  const backMarks = [], frontMarks = [];
+  // a point every quarter turn; the one the camera sits on is left to the camera
+  const steps = Math.round(turns * 4), idx = k => Math.round(k / steps * N);
+  const backMarks = [], frontMarks = []; let shown = 0;
   for (let k = 0; k <= steps; k++) {
-    const p = pts[idx(k)], m = marker(p, k === 0 ? 'S' : String(k), markSize);
+    const p = pts[idx(k)];
+    if (Math.abs(k / steps - camT) < 0.04 || (!p.front && Math.abs(Math.sin(p.th)) < 0.3)) continue; // under the camera, or hidden behind her
+    const m = marker(p, k === 0 ? 'S' : String(++shown), markSize);
     (p.front ? frontMarks : backMarks).push(m);
   }
 
@@ -174,11 +193,12 @@ function spiral(w, h, girlCx, y0, y1, rx, ry, turns, theta0, head, camT, markSiz
 }
 
 const big = layout !== 'banner';
-// One turn rising from her feet to her shoulders: the first half passes in front of her legs, the second climbs
-// behind her. The camera rides the front arc, looking up at her face.
-const sp = big
-  ? spiral(520, 640, 262, 612, 370, 232, 46, 1, -Math.PI / 2, { x: 290, y: 256 }, 0.33, 30)
-  : spiral(450, 400, 230, 378, 228, 196, 32, 1, -Math.PI / 2, { x: 246, y: 152 }, 0.33, 24);
+// One and a half turns rising from her legs to her shoulders. The camera rides the second front pass, at chest height, looking up at her face.
+const sp = layout === 'discord'
+  ? spiral(520, 800, 262, 780, 308, 240, 52, 1.5, -Math.PI / 2, { x: 286, y: 259 }, 0.833, 34)
+  : big
+  ? spiral(520, 640, 262, 620, 256, 232, 46, 1.5, -Math.PI / 2, { x: 283, y: 211 }, 0.833, 30)
+  : spiral(450, 400, 230, 385, 164, 196, 32, 1.5, -Math.PI / 2, { x: 243, y: 133 }, 0.833, 24);
 
 document.getElementById('root').innerHTML = `
   <div class="stage ${layout}">
@@ -189,7 +209,7 @@ document.getElementById('root').innerHTML = `
     ${win}
     <div class="scene">
       ${sp.back}
-      <div class="girl"><img src="bunny.png"></div>
+      <div class="girl"><img src="bunny-pose.png"></div>
       ${sp.front}
     </div>
     ${by}
