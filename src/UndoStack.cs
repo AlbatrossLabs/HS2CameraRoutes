@@ -60,6 +60,7 @@ namespace HS2CameraRoutes
         public Quaternion PrevRot = Quaternion.identity;
         public RouteSnapshot Replaced;     // route this action removed (rebuilt on undo)
         public bool Adjust;                // a live settings change; later ones on the same route merge into it
+        public System.Action Custom;       // an action outside the scene's objects (Send to Timeline): undone by this alone
     }
 
     /// <summary>Undo for Camera Routes actions. Cleared when a scene is loaded or started fresh.</summary>

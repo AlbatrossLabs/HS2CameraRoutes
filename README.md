@@ -23,6 +23,7 @@ By **Albatross Labs**.
 - **Dutch roll and handheld shake** on any move, repeatable so every take matches.
 - **Timed to animations.** Set a move's length in animation loops; every character's animation restarts with the route, so camera and motion stay in step.
 - **One-click recording** through VideoExport, with lead-in and tail. Looping routes record exactly one cycle for seamless loops.
+- **Send to Timeline.** Turn any route into Timeline keyframes (Camera Position and Rotation) at Timeline's cursor, tracking, roll and shake included, so the move plays and edits alongside your Timeline poses, expressions and lights.
 - **Undo** (30 steps) for every action, including replaced routes, which come back exactly as they were.
 - **Hidden markers.** Route lines and point markers hide while a route plays and while recording, so they never show in the shot.
 - **The Albatross Labs look.** Same theme as Studio Browser and Camera Sweep, with numbered fold-out sections, hover hints, a toolbar button and a remembered window position.
@@ -34,18 +35,19 @@ By **Albatross Labs**.
 - **Character and outfit showcases.** Orbit or Spiral around a card for a turntable video or GIF for itch, F95 or Discord.
 - **Animated scenes.** Time an Orbit to an animation's loops and the camera and the animation both loop cleanly in one recording.
 - **Trailers and previews.** String several routes together on different cameras and record each move with the same settings.
+- **Timeline scenes.** Build the camera move here in two clicks, send it to Timeline, and keyframe the rest of the scene (poses, expressions, lights) around it. Send several routes back to back to cut between shots.
 - **Fast iteration.** Try a move, scrub it, change the easing or size, reframe the start, and compare. Nothing has to be rebuilt by hand.
 
 ## Install
 
 1. You need BepInEx 5 and the Modding API (HS2API). BetterRepack includes both.
 2. Put `HS2CameraRoutes.dll` in `BepInEx\plugins\AlbatrossLabs\HS2CameraRoutes\`.
-3. Optional: ExtensibleSaveFormat (saves each route's tracking and settings with the scene) and VideoExport (recording). Both come with BetterRepack and are found automatically.
+3. Optional: ExtensibleSaveFormat (saves each route's tracking and settings with the scene), VideoExport (recording) and Timeline (Send to Timeline). All three come with BetterRepack and are found automatically.
 
 ## Quick start
 
 1. Open Studio and frame a shot of your character with the normal camera.
-2. Open Camera Routes with the button on Studio's left toolbar, **Shift+F7**, or the route button in the Route Controller.
+2. Open Camera Routes with Studio's **Route** button at the top of the workspace, the button on Studio's left toolbar, **Shift+F7**, or the route button in the Route Controller.
 3. Click a character in the workspace to make her the subject.
 4. In **2 Move**, click **Spiral**, then **Up**. A new camera appears on a spiral route and the move plays through it.
 5. Drag **Size**, **Duration** or an easing curve and watch the route rebuild. Use **Scrub** to check any moment, and **Record route** when it looks right.
@@ -55,6 +57,8 @@ By **Albatross Labs**.
 ## The window
 
 ![Camera Routes window](docs/images/window.png)
+
+**Opening it:** Studio's **Route** button at the top of the workspace opens this window (Shift+click it for Studio's own empty route, or set *F1 > Route button in workspace* back to AddStudioRoute). The left toolbar button, **Shift+F7** and the button in the Route Controller open it too.
 
 Along the top: the target camera and the active route's settings. Five numbered sections fold open and shut, each with a one-line summary of its settings, so you can fold away what you don't use. Along the bottom: **Undo** (hover it to see what it undoes), **Remove route**, **Rebuild**, and a status line that also explains whatever is under the pointer. Studio's shortcut keys are paused while the pointer is over the window. It works with IMGUI scaling plugins and remembers where you left it.
 
@@ -122,6 +126,8 @@ Tracking runs while the route plays. Picking a Correct Aim other than None in Ro
 
 ![Record section](docs/images/section-record.png)
 
+#### Record with VideoExport
+
 **Record route** drives VideoExport, which uses its own format, size, frame rate and output folder:
 
 1. VideoExport starts, and Camera Routes waits until it's really capturing frames.
@@ -134,6 +140,22 @@ Tracking runs while the route plays. Picking a Correct Aim other than None in Ro
 VideoExport fixes the game to its capture frame rate while recording, so the move takes exactly its duration in the video however slow the render is. Its own length limit is switched off during a Camera Routes recording and restored afterwards. *Stop recording* (or VideoExport's own Ctrl+Shift+E) ends it early.
 
 <!-- ![Recording](docs/gifs/recording.webp) -->
+
+#### Send to Timeline
+
+**Send to Timeline** writes the selected route into Timeline (Joan6694's keyframe plugin) as keys on its **Camera Position** and **Camera Rotation** tracks, which drive Studio's viewport camera:
+
+1. Put Timeline's cursor where the move should start.
+2. Select the route (or its camera) and click **Send to Timeline**.
+3. Keys are written from the cursor for one run of the route (one cycle for looping routes, with the last key matching the first so it loops cleanly). Any keys already on those two tracks in that stretch are replaced, and Timeline's length grows if the move runs past its end.
+4. The viewport switches to Free cam, because Timeline drives Studio's own camera. Press Play in Timeline.
+
+- **Keys / sec** (2–30, default 10) sets how many keys a second it writes. Timeline blends straight between keys, so more keys follow curves and handheld shake more closely; fewer are easier to edit by hand. The route's easing is already in the key spacing, so the keys are linear.
+- Routes whose aim stays put (Pivot or Off) are worked out at once. Routes that track a **character**, routes with Studio's Correct Aim on, and hand-made routes are **captured live**: the route plays once (restarting animations if *Restart animations* is on) while Camera Routes records where the camera goes, so a moving character is followed exactly as it moved. *Stop* cancels it.
+- **Undo** takes the keys back out and puts back any keys they replaced.
+- The route itself stays in the scene, so you can change it and send it again: the new keys replace the old ones in the same stretch.
+
+<!-- ![Send to Timeline](docs/gifs/timeline.webp) -->
 
 ## Moves
 
@@ -170,10 +192,10 @@ Set **Time by** to *Animation loops* and the move's duration becomes *Loops* × 
 
 Everything in the window is also in F1, plus:
 
-- **General:** toggle key (Shift+F7), Undo and Play hotkeys (not bound by default), the Route Controller button and the toolbar button.
+- **General:** toggle key (Shift+F7), Undo and Play hotkeys (not bound by default), the Route Controller button, the toolbar button, and **Route button in workspace** (OpenCameraRoutes, the default, or AddStudioRoute for Studio's own behaviour).
 - **Subject:** Keep framing.
 - **Advanced:** Size mode (share of subject distance, or fixed Studio units), fixed base distance, fallback subject distance, look through a new camera, replace the previous route, what a selected character or item does (LookAtIt / MoveIt), motion line on/off and its color.
-- **Recording:** restart animations, record every new route, lead-in, tail, seamless loops.
+- **Recording:** restart animations, record every new route, lead-in, tail, seamless loops, Timeline keys per second.
 
 ## How the routes are built
 
@@ -185,7 +207,7 @@ Everything in the window is also in F1, plus:
 - **Saved data:** each route's record (move, subject, pivot, character, framing, settings, original parent) is saved inside the scene file through ExtensibleSaveFormat, so tracking, live update and Remove route work after reloading. Imported scenes are matched up by route position. Without ExtensibleSaveFormat the plugin still works, but records last only until the scene is closed.
 - **Studio's Behavior dropdown** (Route Point Settings) normally lists 6 eases. Camera Routes adds the other 26 its tween engine supports after Studio's own six, so existing scenes are unchanged.
 
-## Known limits (0.9.2)
+## Known limits (0.10.1)
 
 - **Zoom is a push-in.** Routes move objects; they can't change a camera's lens (FOV).
 - **Studio's viewport camera can't ride a route.** Moves always use a camera object (or an item); Add route makes a new camera at the current view.
@@ -198,6 +220,8 @@ Everything in the window is also in F1, plus:
 - **Recording a hand-made route** works if it doesn't loop. Looping hand-made routes have no known cycle length.
 - **Routes are recognised by the "Cam Route: " name prefix.** Renaming one detaches it from its record.
 - **Imported scenes:** character subjects are found again by name.
+- **Send to Timeline drives the viewport camera,** not the camera object, so it plays in Free cam. Timeline's camera tracks are global, so a second route sent over the same stretch replaces the first.
+- **A live capture follows the character as it moved during that run.** If Timeline later plays the character's animation from a different point, the camera aims where she was during the capture.
 
 ## Build
 
@@ -207,7 +231,7 @@ dotnet build -c Release
 
 References come from the game install (`HS2Dir`, default `X:\HS2 RX15`), and the build copies the DLL to `BepInEx\plugins\AlbatrossLabs\HS2CameraRoutes\` there. Override with `-p:HS2Dir="..."`, or skip the copy with `-p:Deploy=false`.
 
-Needs BepInEx 5 and the Modding API (HS2API, for the toolbar button). ExtensibleSaveFormat (BepisPlugins) and VideoExport (HSPlugins) are used when present, through reflection, so there are no build references to them.
+Needs BepInEx 5 and the Modding API (HS2API, for the toolbar button). ExtensibleSaveFormat (BepisPlugins), VideoExport and Timeline (HSPlugins) are used when present, through reflection, so there are no build references to them.
 
 ```
 src/CameraRoutesPlugin.cs   config, hotkeys, routes list, applying a move, live update, scrub, reframe
@@ -221,6 +245,7 @@ src/Tracker.cs              aims cameras at their subject while routes play, hid
 src/UndoStack.cs            undo entries and route snapshots
 src/AnimLoops.cs            animation loop length, restarting all characters' animations
 src/Recorder.cs             recording a route with VideoExport (by reflection)
+src/TimelineBridge.cs       Send to Timeline: sampling a route and writing Timeline keys (by reflection)
 src/ArcAimer.cs             fallback aiming for routes without a record
 src/StudioEaseList.cs       adds the missing eases to Studio's Behavior dropdown
 src/UI/Theme.cs             the shared Albatross Labs skin (copied from Studio Browser; keep them in step)
@@ -228,12 +253,15 @@ src/UI/Support.cs           relayout helper, shortcut-key guard, toolbar button 
 src/RouteBuilder.cs         target selection, new camera at the view, building the Studio route
 src/PresetWindow.cs         the window
 src/ControllerButton.cs     the button in Studio's Route Controller
+src/WorkspaceRouteButton.cs Studio's workspace Route button opens the window (Shift+click: Studio's own route)
 ```
 
 The banner, social preview and Discord images are made from `docs/images/source/banner.html`; see the README there.
 
 ## Changes
 
+- **0.10.1:** Studio's workspace Route button opens Camera Routes; Shift+click still adds an empty Studio route, and *F1 > Route button in workspace* switches it back.
+- **0.10.0:** Send to Timeline: writes any route into Timeline as Camera Position and Rotation keys at Timeline's cursor (tracking, roll and handheld included; character-tracking routes are captured live), with Keys / sec and Undo.
 - **0.9.2:** Route cam follows the active route (switching routes used to leave the view on the previous route's camera); the Scrub slider now really moves the camera (a stopped route used to snap it back to its start every frame); Reframe start works on any route.
 - **0.9.1:** orbits, spirals and arcs use a point every 15° (was 22.5°–30°), so they stay at one distance from the subject; a new route starts playing on the next frame, aimed at its subject from the first frame.
 - **0.9.0:** routes list with an active route: moves change the active route, and new routes come only from Add route (or your first move); Route cam / Free cam switch; compact type → direction move picker; Orbit Right; Undo button just says Undo. Fixed: switching Track to Character on an existing route kept aiming at the old fixed pivot.

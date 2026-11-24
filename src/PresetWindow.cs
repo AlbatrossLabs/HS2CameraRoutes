@@ -33,7 +33,7 @@ namespace HS2CameraRoutes
         private string _loopsText = "";
         private string _trackInfo = "";
         private bool _reframing;
-        private bool _canRecord, _recorderAvailable, _canPlay;
+        private bool _canRecord, _recorderAvailable, _canPlay, _timelineAvailable;
         private OCIRoute _route;            // the selected route (Play / Stop / scrub)
         private float _routeTotal;          // its length in seconds, as Studio plays it
         private bool _pingPong;             // a looping two-point route goes there and back
@@ -102,6 +102,7 @@ namespace HS2CameraRoutes
             _trackInfo = _p.SubjectTrackingInfo();
             _reframing = _p.Reframing;
             _recorderAvailable = _p.Recorder.Available;
+            _timelineAvailable = _p.Baker.Available;
             OCIRoute active = _p.ActiveRoute;
             if (active != _active)
             {
@@ -449,6 +450,38 @@ namespace HS2CameraRoutes
 
         private void DrawRecord()
         {
+            DrawVideo();
+            GUILayout.Space(6);
+            DrawTimeline();
+        }
+
+        private void DrawTimeline()
+        {
+            if (!_timelineAvailable)
+            {
+                GUILayout.Label(Theme.Hint("Timeline isn't installed, so Send to Timeline is off."), Theme.Rich, GUILayout.Width(Inner));
+                return;
+            }
+            GUILayout.BeginHorizontal();
+            if (_p.Baker.Busy)
+            {
+                if (GUILayout.Button("Stop", Theme.Primary, GUILayout.Width(150), GUILayout.Height(26))) { _p.Baker.Cancel(); SetStatus("Send to Timeline cancelled."); }
+                GUILayout.Label(_p.Baker.StatusText, Theme.RichSingle, GUILayout.Height(26));
+            }
+            else
+            {
+                GUI.enabled = _canPlay && !_p.Recorder.Busy;
+                if (GUILayout.Button(new GUIContent("Send to Timeline", "Write the selected route's camera path into Timeline as Camera Position and Rotation keys, starting at Timeline's cursor. Undo takes them out again."), Theme.Primary, GUILayout.Width(150), GUILayout.Height(26)))
+                    SetStatus(_p.SendToTimeline());
+                GUI.enabled = true;
+                GUILayout.Label(Theme.Hint(_canPlay ? "Keys start at Timeline's cursor" : "Select a camera on a route"), Theme.RichSingle, GUILayout.Height(26));
+            }
+            GUILayout.EndHorizontal();
+            _p.TimelineKeyRate.Value = Slider("Keys / sec", "Keys per second Send to Timeline writes: more follow curves and shake more closely, fewer are easier to edit by hand", _p.TimelineKeyRate.Value, 2f, 30f, Mathf.RoundToInt(_p.TimelineKeyRate.Value) + " /s", 1f);
+        }
+
+        private void DrawVideo()
+        {
             if (!_recorderAvailable)
             {
                 GUILayout.Label(Theme.Warn("VideoExport isn't installed, so recording is off."), Theme.Rich, GUILayout.Width(Inner));
@@ -494,6 +527,7 @@ namespace HS2CameraRoutes
             string line;
             if (!string.IsNullOrEmpty(_status) && Time.unscaledTime < _statusUntil) line = _status;
             else if (_p.Recorder.Busy) line = _p.Recorder.StatusText;
+            else if (_p.Baker.Busy) line = _p.Baker.StatusText;
             else if (!string.IsNullOrEmpty(GUI.tooltip)) line = Theme.Hint(GUI.tooltip);
             else line = Theme.Hint(_p.ToggleKey.Value + " opens and closes this window");
             GUILayout.Label(line, Theme.RichSingle, GUILayout.Width(Width - 20), GUILayout.Height(18));
@@ -549,9 +583,13 @@ namespace HS2CameraRoutes
 
         private string RecordSummary()
         {
-            if (!_recorderAvailable) return "VideoExport not found";
             if (_p.Recorder.Busy) return "recording…";
-            return _p.RecordAfterCreate.Value ? "records every new route" : "VideoExport";
+            if (_p.Baker.Busy) return "capturing for Timeline…";
+            string video = !_recorderAvailable ? "" : _p.RecordAfterCreate.Value ? "records every new route" : "VideoExport";
+            string timeline = _timelineAvailable ? "Timeline" : "";
+            if (video.Length > 0 && timeline.Length > 0) return video + "  ·  " + timeline;
+            if (video.Length + timeline.Length == 0) return "VideoExport and Timeline not found";
+            return video + timeline;
         }
 
         // ================================================================ easing preview

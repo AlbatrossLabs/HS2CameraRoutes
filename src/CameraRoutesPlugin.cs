@@ -28,7 +28,7 @@ namespace HS2CameraRoutes
     {
         public const string Guid = "com.albatrosslabs.hs2.cameraroutes";
         public const string PluginName = "Camera Routes";
-        public const string Version = "0.9.2";
+        public const string Version = "0.10.1";
 
         internal static new ManualLogSource Logger;
         internal static CameraRoutesPlugin Instance;
@@ -80,6 +80,9 @@ namespace HS2CameraRoutes
         private PresetWindow _window;
         private ControllerButton _button;
         internal Recorder Recorder;
+        internal TimelineBaker Baker;
+        internal ConfigEntry<float> TimelineKeyRate;
+        internal ConfigEntry<RouteButtonMode> RouteButton;
 
         private void Awake()
         {
@@ -96,6 +99,8 @@ namespace HS2CameraRoutes
                 "Adds a presets button next to play / replay / stop in Studio's Route Controller.");
             ShowToolbarButton = Config.Bind("1. General", "Toolbar button", true,
                 "A Camera Routes button on Studio's left toolbar, next to the Studio Browser buttons. Takes effect after a restart.");
+            RouteButton = Config.Bind("1. General", "Route button in workspace", RouteButtonMode.OpenCameraRoutes,
+                "What Studio's Route button (top of the workspace) does. OpenCameraRoutes = opens this window; Shift+click still adds an empty Studio route. AddStudioRoute = Studio's own behaviour (adds an empty route).");
             WindowPosition = Config.Bind("1. General", "Window position", "",
                 new ConfigDescription("Where the window was last closed.", null, new ConfigurationManagerAttributes { Browsable = false }));
 
@@ -139,6 +144,10 @@ namespace HS2CameraRoutes
             SeamlessLoops = Config.Bind("5. Recording", "Seamless loops", true,
                 "Looping routes (Orbit, looping straight moves) record exactly one cycle with no lead-in or tail, so the video loops cleanly. Time it in animation loops for a perfect loop.");
 
+            TimelineKeyRate = Config.Bind("5. Recording", "Timeline keys per second", 10f,
+                new ConfigDescription("How many keys per second Send to Timeline writes. Timeline blends straight between keys, so more keys follow curves and handheld shake more closely; fewer are easier to edit by hand.",
+                    new AcceptableValueRange<float>(2f, 30f)));
+
             SizeModeSetting = Config.Bind("4. Advanced", "Size mode", SizeMode.ShareOfSubjectDistance,
                 "ShareOfSubjectDistance = moves scale with how far the camera is from what it's looking at, so one preset works on a close-up and a wide shot. FixedUnits = Size x Fixed base distance, in Studio units.");
             FixedBase = Config.Bind("4. Advanced", "Fixed base distance", 10f,
@@ -166,10 +175,12 @@ namespace HS2CameraRoutes
             _window = new PresetWindow(this);
             _button = new ControllerButton(this);
             Recorder = new Recorder(this);
+            Baker = new TimelineBaker(this);
 
             var harmony = new Harmony(Guid);
             harmony.PatchAll(typeof(StudioEaseList));
             harmony.PatchAll(typeof(InitScenePatch));
+            harmony.PatchAll(typeof(WorkspaceRouteButton));
             InputGuard.Install(harmony);
             SceneData.Init();
         }
@@ -201,6 +212,8 @@ namespace HS2CameraRoutes
         {
             if (!RouteBuilder.StudioReady) return;
             Tracker.LateUpdate();
+            string baked = Baker.LateUpdate();
+            if (baked != null) _window.SetStatus(baked);
         }
 
         private void OnGUI()
@@ -212,6 +225,13 @@ namespace HS2CameraRoutes
         internal void ToggleWindow()
         {
             _window.Visible = !_window.Visible;
+        }
+
+        /// <summary>Shows the window (from the workspace Route button), with a line in its status bar.</summary>
+        internal void OpenWindow(string status)
+        {
+            _window.Visible = true;
+            if (!string.IsNullOrEmpty(status)) _window.SetStatus(Theme.Hint(status));
         }
 
         // ---------------------------------------------------------------- subject
@@ -326,7 +346,14 @@ namespace HS2CameraRoutes
 
         internal string RecordSelected()
         {
+            if (Baker.Busy) return "Wait for Send to Timeline to finish.";
             return Recorder.Start(SelectedRoute());
+        }
+
+        /// <summary>Writes the selected route's camera path into Timeline as keys, at Timeline's cursor.</summary>
+        internal string SendToTimeline()
+        {
+            return Baker.Start(SelectedRoute());
         }
 
         /// <summary>The record of the route the current target rides, if any.</summary>
@@ -647,7 +674,7 @@ namespace HS2CameraRoutes
                 RoutePlan plan = Planner.Build(preset, frame, opt);
                 rec.Origin = plan.Origin;
 
-                bool record = !adjust && RecordAfterCreate.Value && Recorder.Available && !Recorder.Busy;
+                bool record = !adjust && RecordAfterCreate.Value && Recorder.Available && !Recorder.Busy && !Baker.Busy;
                 bool play = PlayAfterCreate.Value && !record;
                 // With a subject selected, keep it selected so the next preset looks at it too. The route starts on the
                 // next frame (see Update), once its record is in place and Studio has refreshed its panels.
@@ -689,6 +716,12 @@ namespace HS2CameraRoutes
         {
             UndoEntry e = UndoStack.Pop();
             if (e == null) return "Nothing to undo.";
+            if (e.Custom != null)
+            {
+                try { e.Custom(); }
+                catch (Exception ex) { Logger.LogError(ex); return Theme.Warn("Couldn't undo " + e.Label + ": " + ex.Message); }
+                return "Undid " + e.Label + ".";
+            }
             ResyncSelection(); // the window shows the restored route's settings
             try
             {
@@ -811,7 +844,7 @@ namespace HS2CameraRoutes
         /// </summary>
         private void AutoUpdateTick()
         {
-            if (!AutoUpdate.Value || Recorder.Busy) { _pendingRebuild = false; return; }
+            if (!AutoUpdate.Value || Recorder.Busy || Baker.Busy) { _pendingRebuild = false; return; }
 
             ObjectCtrlInfo target = RouteBuilder.ResolveTarget();
             int key = target != null && target.objectInfo != null ? target.objectInfo.dicKey : -1;
